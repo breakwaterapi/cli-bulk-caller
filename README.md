@@ -16,7 +16,7 @@ also works as a standalone transcriber for local audio files — no Telnyx neede
 
 ```
 numbers.txt
-  → telnyx.Call.create() per number (thread pool, concurrent)
+  → client.calls.dial() per number (thread pool, concurrent)
   → call answered → playback_start(audio_url) + record_start()
   → Telnyx fires webhook: call.recording.saved
   → download recording → OpenAI Whisper transcription
