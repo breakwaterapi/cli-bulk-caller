@@ -44,7 +44,7 @@ class CallService:
         self._lock = threading.Lock()
         
         # Configure Telnyx API
-        telnyx.api_key = settings.telnyx_api_key
+        self.client = telnyx.Telnyx(api_key=settings.telnyx_api_key)
         
         logger.info("CallService initialized")
     
@@ -65,14 +65,14 @@ class CallService:
         try:
             logger.info(f"Initiating call to {to_number}")
             
-            telnyx_call = telnyx.Call.create(
+            telnyx_call = self.client.calls.dial(
                 connection_id=self.settings.telnyx_connection_id,
                 to=to_number,
                 from_=self.settings.telnyx_from_number,
             )
             
             call = Call(
-                call_control_id=telnyx_call.call_control_id,
+                call_control_id=telnyx_call.data.call_control_id,
                 to_number=to_number,
                 from_number=self.settings.telnyx_from_number,
                 status=CallStatus.INITIATED,
@@ -84,7 +84,7 @@ class CallService:
             logger.info(f"Call initiated: {call.call_control_id}")
             return call
             
-        except telnyx.error.TelnyxError as e:
+        except telnyx.APIError as e:
             error_msg = f"Failed to initiate call to {to_number}: {e}"
             logger.error(error_msg)
             raise TelnyxAPIError(error_msg, api_error=str(e))
@@ -110,13 +110,14 @@ class CallService:
         try:
             logger.info(f"Starting playback on call {call_control_id}")
             
-            telnyx_call = telnyx.Call()
-            telnyx_call.call_control_id = call_control_id
-            telnyx_call.playback_start(audio_url=self.settings.audio_url)
+            self.client.calls.actions.start_playback(
+                call_control_id,
+                audio_url=self.settings.audio_url,
+            )
             
             logger.info(f"Playback started on call {call_control_id}")
             
-        except telnyx.error.TelnyxError as e:
+        except telnyx.APIError as e:
             error_msg = f"Failed to start playback: {e}"
             logger.error(error_msg)
             raise TelnyxAPIError(error_msg, api_error=str(e))
@@ -138,9 +139,8 @@ class CallService:
         try:
             logger.info(f"Starting recording on call {call_control_id}")
             
-            telnyx_call = telnyx.Call()
-            telnyx_call.call_control_id = call_control_id
-            telnyx_call.record_start(
+            self.client.calls.actions.start_recording(
+                call_control_id,
                 format=self.settings.recording_format,
                 channels=self.settings.recording_channels,
             )
@@ -148,7 +148,7 @@ class CallService:
             call.mark_recording()
             logger.info(f"Recording started on call {call_control_id}")
             
-        except telnyx.error.TelnyxError as e:
+        except telnyx.APIError as e:
             error_msg = f"Failed to start recording: {e}"
             logger.error(error_msg)
             raise TelnyxAPIError(error_msg, api_error=str(e))
